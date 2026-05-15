@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BarberAI — Tu Corte Perfecto</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+    <script src="https://cdn.tailwindcss.com"></script>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="../css/analysis.css">
+  <link rel="stylesheet" href="../css/recommendations.css">
+</head>
+
+<body>
+
+  <div class="pole-decoration"></div>
+
+  <header>
+    <div>
+      <div class="logo">Barber<span>AI</span></div>
+      <div class="tagline">Sistema Inteligente de Análisis Capilar</div>
+    </div>
+    <div class="header-controls">
+      <button id="api-config-btn"
+        title="Configurar API Poe">⚙ Config <span id="api-indicator"></span></button>
+      <div class="scissors-icon">✂️</div>
+    </div>
+  </header>
+
+  <!-- API CONFIGURATION MODAL -->
+  <div id="api-modal">
+    <div class="api-modal-content">
+      <div class="api-modal-title">Configurar Poe API</div>
+      <div class="api-modal-description">
+        Obtén tu API Key en <a href="https://poe.com/api/keys" target="_blank">poe.com/api/keys</a>
+      </div>
+      <input type="password" id="poe-api-input" class="api-input" placeholder="Pega tu POE_API_KEY aquí">
+      <label for="analysis-model-select" class="api-label">Modelo de análisis</label>
+      <select id="analysis-model-select" class="api-select">
+        <option value="Claude-Opus-4.7">Claude-Opus-4.7 (calidad alta)</option>
+        <option value="GPT-5.5">GPT-5.5 (equilibrado)</option>
+        <option value="GPT-4.1-mini">GPT-4.1-mini (bajo costo)</option>
+        <option value="Nano-Banana-2">Nano-Banana-2 (experimental)</option>
+      </select>
+      <label for="image-model-select" class="api-label">Modelo de imagen</label>
+      <select id="image-model-select" class="api-select">
+        <option value="GPT-Image-1.5">GPT-Image-1.5 (recomendado)</option>
+        <option value="Nano-Banana-2">Nano-Banana-2 (si tu cuenta lo soporta)</option>
+      </select>
+      <div class="api-notice">
+        Si se agotan puntos, BarberAI hará fallback automático a un flujo de bajo costo.
+      </div>
+      <div class="api-buttons">
+        <button id="api-save-btn" class="btn btn-primary">💾 Guardar</button>
+        <button id="api-cancel-btn" class="btn btn-secondary">Cancelar</button>
+      </div>
+      <div id="api-status"></div>
+    </div>
+  </div>
+
+  <main>
+    <!-- STEP INDICATOR -->
+    <div class="steps-bar">
+      <div class="step-dot active" id="dot-1"></div>
+      <div class="step-dot" id="dot-2"></div>
+      <div class="step-dot" id="dot-3"></div>
+      <div class="step-dot" id="dot-4"></div>
+      <span class="step-label" id="step-label">Paso 1 de 4</span>
+    </div>
+
+    <!-- ═══ PANEL 1: BIENVENIDA / MODO ═══ -->
+    <div class="panel active" id="panel-1">
+      <div class="section-title">Tu <span class="highlight">Corte</span><br>Perfecto</div>
+      <div class="section-sub">El sistema analiza tu rostro y te recomienda el corte ideal para ti.</div>
+
+      <div class="option-grid">
+        <div class="option-card" onclick="selectMode('guided')">
+          <span class="option-icon">🎯</span>
+          <span class="option-label">Guiado</span>
+          <span class="option-desc">Cuéntame tu estilo y te recomiendo el corte perfecto.</span>
+        </div>
+        <div class="option-card" onclick="selectMode('discover')">
+          <span class="option-icon">🔮</span>
+          <span class="option-label">Descubrir <span class="discover-badge">Nuevo</span></span>
+          <span class="option-desc">La IA analiza tu rostro y sugiere cortes modernos y tendencias actuales.</span>
+        </div>
+        <div class="option-card" onclick="selectMode('surprise')">
+          <span class="option-icon">⚡</span>
+          <span class="option-label">Sorpréndeme</span>
+          <span class="option-desc">Sin preguntas. Solo sube tu foto y recibe una recomendación audaz.</span>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-mode-next" onclick="goToPanel(2)" disabled>Continuar →</button>
+      </div>
+    </div>
+
+    <!-- ═══ PANEL 2: FOTO ═══ -->
+    <div class="panel" id="panel-2">
+      <button class="back-link" onclick="goToPanel(1)">← Volver</button>
+      <div class="section-title">Tu <span class="highlight">Foto</span></div>
+      <div class="section-sub" id="photo-subtitle">Necesito ver tu rostro para analizarlo correctamente.</div>
+
+      <!-- Photo Mode Selection Buttons -->
+      <div class="photo-mode-buttons">
+        <button id="mode-upload-btn" class="btn btn-primary photo-mode-btn" onclick="switchPhotoMode('upload')">📁 Subir Foto</button>
+        <button id="mode-camera-btn" class="btn btn-secondary photo-mode-btn" onclick="switchPhotoMode('camera')">📸 Tomar Selfie</button>
+      </div>
+
+      <!-- Upload Mode -->
+      <div id="upload-mode" style="display:block">
+        <div class="upload-zone" id="upload-zone">
+          <input type="file" id="photo-input" accept="image/*" onchange="handlePhotoUpload(event)">
+          <img id="upload-preview" class="upload-preview" alt="Preview">
+          <span class="upload-icon" id="upload-icon">📷</span>
+          <div class="upload-text" id="upload-text">Arrastra tu foto aquí o haz clic para seleccionar</div>
+          <div class="upload-hint" id="upload-hint">JPG, PNG o WEBP · Máx 8MB · Frente al rostro, buena iluminación
+          </div>
+        </div>
+      </div>
+
+      <!-- Camera Mode -->
+      <div id="camera-mode" class="hidden-mode">
+        <div class="camera-container">
+          <div class="camera-video-wrapper">
+            <video id="camera-video"></video>
+            <canvas id="camera-canvas"></canvas>
+            <div id="camera-loading">Iniciando cámara...</div>
+            <div id="camera-error"></div>
+          </div>
+          <div class="camera-buttons">
+            <button id="camera-capture-btn" class="btn btn-primary camera-btn" onclick="capturePhotoFromCamera()">📸 Capturar</button>
+            <button id="camera-retake-btn" class="btn btn-secondary camera-btn hidden-btn" onclick="retakeSelfie()">🔄 Retomar</button>
+            <button id="camera-confirm-btn" class="btn btn-primary camera-btn hidden-btn" onclick="confirmCameraPhoto()">✓ Confirmar</button>
+          </div>
+        </div>
+        <img id="camera-preview" class="upload-preview" alt="Captura">
+      </div>
+
+      <div id="style-questions">
+        <div class="divider">Tus preferencias</div>
+
+        <div class="section-title style-question-title">�u00bfCuál es tu <span class="highlight">estilo</span>?</div>
+        <div class="option-grid" id="style-grid">
+          <div class="option-card" onclick="selectStyle('clasico')">
+            <span class="option-icon">👔</span>
+            <span class="option-label">Clásico</span>
+            <span class="option-desc">Limpio, elegante, atemporal.</span>
+          </div>
+          <div class="option-card" onclick="selectStyle('urbano')">
+            <span class="option-icon">🏙️</span>
+            <span class="option-label">Urbano</span>
+            <span class="option-desc">Fresco, moderno, callejero.</span>
+          </div>
+          <div class="option-card" onclick="selectStyle('formal')">
+            <span class="option-icon">💼</span>
+            <span class="option-label">Formal</span>
+            <span class="option-desc">Ejecutivo, profesional, prolijo.</span>
+          </div>
+          <div class="option-card" onclick="selectStyle('casual')">
+            <span class="option-icon">😎</span>
+            <span class="option-label">Casual</span>
+            <span class="option-desc">Relajado, natural, sin complicaciones.</span>
+          </div>
+          <div class="option-card" onclick="selectStyle('rock')">
+            <span class="option-icon">🎸</span>
+            <span class="option-label">Rock / Alt</span>
+            <span class="option-desc">Volumen, textura, actitud.</span>
+          </div>
+          <div class="option-card" onclick="selectStyle('hipster')">
+            <span class="option-icon">🪻</span>
+            <span class="option-label">Hipster</span>
+            <span class="option-desc">Fade, barba cuidada, vintage.</span>
+          </div>
+        </div>
+
+        <div class="section-title style-question-title maint">u00bfLargo <span class="highlight">preferido</span>?</div>
+        <div class="slider-group">
+          <div class="slider-label">
+            <span>Muy corto</span>
+            <span id="length-val">Medio</span>
+            <span>Largo</span>
+          </div>
+          <input type="range" min="1" max="5" value="3" id="length-slider"
+            oninput="document.getElementById('length-val').textContent=['Muy corto','Corto','Medio','Largo','Muy largo'][this.value-1]">
+        </div>
+
+        <div class="section-title style-question-title maint">u00bfMantenimiento <span class="highlight">disponible</span>?</div>
+        <div class="option-grid maintenance-grid">
+          <div class="option-card" onclick="selectMaint('bajo')">
+            <span class="option-icon">💤</span>
+            <span class="option-label">Bajo</span>
+            <span class="option-desc">Me levanto y listo.</span>
+          </div>
+          <div class="option-card" onclick="selectMaint('medio')">
+            <span class="option-icon">🪮</span>
+            <span class="option-label">Medio</span>
+            <span class="option-desc">Algo de cuidado.</span>
+          </div>
+          <div class="option-card" onclick="selectMaint('alto')">
+            <span class="option-icon">💎</span>
+            <span class="option-label">Alto</span>
+            <span class="option-desc">Me gusta estar perfecto.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-analyze" onclick="startAnalysis()" disabled>
+          ✨ Analizar y Recomendar
+        </button>
+      </div>
+    </div>
+
+    <!-- ═══ PANEL 3: ANÁLISIS LOADING ═══ -->
+    <div class="panel" id="panel-3">
+      <div class="loading-screen">
+        <div class="loading-spinner"></div>
+        <div class="section-title loading-title">Analizando <span class="highlight">tu rostro</span></div>
+        <div class="loading-msg" id="loading-msg">Iniciando análisis...</div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar-fill" id="progress-fill"></div>
+        </div>
+        <ul class="loading-steps" id="loading-steps">
+          <li id="ls-1">
+            <div class="dot"></div>Detectando forma del rostro
+          </li>
+          <li id="ls-2">
+            <div class="dot"></div>Analizando tipo de cabello
+          </li>
+          <li id="ls-3">
+            <div class="dot"></div>Identificando facciones destacadas
+          </li>
+          <li id="ls-4">
+            <div class="dot"></div>Evaluando proporciones
+          </li>
+          <li id="ls-5">
+            <div class="dot"></div>Generando recomendación personalizada
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ═══ PANEL 4: RESULTADOS ═══ -->
+    <div class="panel" id="panel-4">
+      <button class="back-link" onclick="resetAll()">✂ Nuevo análisis</button>
+      <div class="section-title">Tu <span class="highlight">Análisis</span></div>
+      <div class="section-sub">Basado en los rasgos únicos de tu rostro.</div>
+
+      <!-- ANÁLISIS FACIAL -->
+      <div class="result-card">
+        <div class="result-header">
+          <span>🔍</span>
+          <span class="result-header-title">Análisis Facial Detallado</span>
+        </div>
+        <div class="result-body">
+          <div class="trait-grid" id="traits-grid">
+            <!-- dinámico -->
+          </div>
+          <div id="analysis-text" class="rec-body" style="margin-top:12px"></div>
+        </div>
+      </div>
+
+      <!-- RECOMENDACIÓN -->
+      <div class="rec-box">
+        <div class="rec-title" id="rec-cut-name">Corte Recomendado</div>
+        <div class="rec-body" id="rec-body-text"></div>
+      </div>
+
+      <!-- PREVIEW IMAGE -->
+      <div class="preview-section">
+        <div class="section-title results-title">Vista <span class="highlight">Previa</span></div>
+        <div class="section-sub">Así luciría tu nuevo corte — mismo rostro, nuevo tú.</div>
+
+        <div class="preview-wrapper" id="preview-wrapper">
+          <div class="loading-spinner" id="preview-spinner"></div>
+          <div class="loading-msg">Generando tu preview...</div>
+        </div>
+        <div class="preview-disclaimer">
+          ⚠ La preview mantiene tus rasgos faciales intactos — solo se modifica el cabello.<br>
+          Presenta esta imagen a tu barbero como referencia.
+        </div>
+      </div>
+
+      <!-- BARBER RECOMMENDATIONS -->
+      <div style="margin-top:40px;padding:24px;background:rgba(201,168,76,0.05);border:1px solid rgba(201,168,76,0.2);border-radius:12px">
+        <div id="barber-recommendations-container">
+          <div style="text-align:center;padding:20px">
+            <div class="loading-spinner" style="width:40px;height:40px;margin:0 auto"></div>
+            <div style="margin-top:12px;color:var(--muted)">Buscando barberos perfectos para tu corte...</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="btn-row" style="margin-top:32px">
+        <button class="btn btn-primary" onclick="window.print()">🖨 Imprimir Resultado</button>
+        <button class="btn btn-secondary" onclick="resetAll()">✂ Nuevo Análisis</button>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- TOAST -->
+  <div class="toast" id="toast"></div>
+
+  <script src="../js/booking.js"></script>
+  <script src="../js/ai_analysis.js"></script>
+
+</body>
+
+</html>
